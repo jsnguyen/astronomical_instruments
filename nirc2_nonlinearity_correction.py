@@ -39,7 +39,7 @@ def correct_nonlinearity(x):
     # apply the "opposite" of the deviation from linearity to correct it
     return (1-res) * x
     
-def correct_quad_nonlinearity(data, ):
+def quad_correct_quad_nonlinearity(data):
     '''
     Desc:
     Correction for the NIRC2 nonlinearity on a quadrant basis.
