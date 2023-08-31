@@ -5,6 +5,7 @@ def correct_nonlinearity(x):
     Desc:
     Correction of the NIRC2 non-linearity using polynomial fits
     to average pixel values across the entire frame.
+    Note that this is only well defined from 0 to ~20000 DN.
 
     Args:
     x -> a single value or an array. Works by the power of numpy!
@@ -44,7 +45,8 @@ def quad_correct_quad_nonlinearity(data):
     Desc:
     Correction for the NIRC2 nonlinearity on a quadrant basis.
     2nd order polynomials were fit to linearity data from each quadrant separately.
-    This procedure works as long as the image can be divided into 2x2 quadrants
+    This procedure works as long as the image can be divided into 2x2 quadrants.
+    Note that this is only well defined from 0 to ~20000 DN.
     
     Args:
     data -> should be a 2D numpy array, the raw image itself in DN
