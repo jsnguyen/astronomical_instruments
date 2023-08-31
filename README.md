@@ -1,8 +1,8 @@
 # NIRC2 Non-linearity Analysis
 
-![quad nonlinearity](quad_pixel_averages.png")
+![quad nonlinearity](analysis/quad_pixel_averages.png)
 
-![quad percent nonlinearity](quad_percent_nonlinearity.png")
+![quad percent nonlinearity](analysis/quad_percent_nonlinearity.png)
 
 The code to correct the nonlinearity can be found in `src/nirc2_nonlinearity_correction/__init__.py`.
 
