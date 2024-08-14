@@ -13,7 +13,7 @@ from astropy.io.fits.verify import AstropyUserWarning
 import warnings
 warnings.simplefilter('ignore', category=AstropyUserWarning)
 
-from correction_curve import NIRC2
+from nirc2_nonlinearity_correction.correction_curve import NIRC2
 
 def plot_linearity(linearity_data, n_fit, year, use_correction_curve):
 
