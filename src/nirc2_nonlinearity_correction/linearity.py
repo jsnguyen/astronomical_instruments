@@ -129,7 +129,6 @@ def calc_correction_curves(linearity_data, correction_curve_slice, order=1):
     return correction_curves, diffs
 
 def linearity(year, cutoff=None, correction_curve_slice=None, use_correction_curve=False, save_curves=True, order=1):
-
     '''
     read in the datasets, fit the linearity, make plots, and save the final correction curves
 
@@ -167,6 +166,7 @@ def linearity(year, cutoff=None, correction_curve_slice=None, use_correction_cur
     linearity_data = {}
     for bandname in bands:
 
+        # read in data
         data_folder = importlib.resources.files(f'nirc2_nonlinearity_correction.data_{year}.linearity_{bandname}')
         data_files = []
         for resource in data_folder.iterdir():
@@ -185,9 +185,15 @@ def linearity(year, cutoff=None, correction_curve_slice=None, use_correction_cur
             headers.append(fits.getheader(fn))
 
 
+        # fit a line to each dataset, cutting off the first n "cutoff" values
+        # there's some weird parts near the beginning at extremely short exposures that don't match up with linearity
+        # so we toss those and fit to a range that is closer to what we would take in science frames
+
         res = fit_linearity(data, headers, cutoff, n_fit)
         linearity_data[bandname] = res
 
+    # calculate the correction curves based off of the "percent deviation from linearity"
+    # percent = perfect_linear - actual_data / perfect_linear
     correction_curves, diffs = calc_correction_curves(linearity_data, correction_curve_slice, order=order)
 
     if save_curves:
@@ -207,5 +213,3 @@ if __name__=='__main__':
     linearity('2019')
     linearity('2024', use_correction_curve=True, save_curves=False)
     linearity('2019', use_correction_curve=True, save_curves=False)
-
-#linearity('2019')
