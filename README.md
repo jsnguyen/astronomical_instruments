@@ -60,3 +60,11 @@ Lastly, checking that our correction works:
 </div>
 
 And we see that the plots are now much closer to linear across the range! The upper ends aren't so important to fit since the detector typically does not reach those levels.
+
+## Notes
+
+The initial 2019 analysis included in `old_analysis/`.
+
+There's a couple extra plots in `plots` not shown here.
+
+I don't know the exact dates for when linearity changed from the 2019 state to the 2024 state. I also don't know the rule of thumb the Keck SA's use for the new linearity limit.
