@@ -53,7 +53,7 @@ corrected = NIRC2.apply_nonlinearity_correction(data, '2023')
 If you want to regenerate the correction curves, and diagnostic plots:
 
 ``` python
-from astronomical_instruments import linearity
+from astronomical_instruments import NIRC2
 
 NIRC2.generate_nonlinearity_correction('2024', make_plots=True)
 NIRC2.generate_nonlinearity_correction('2019', make_plots=True)
@@ -88,6 +88,7 @@ $$ \% = \frac{\text{linear\_data}-\text{actual\_data}}{\text{linear\_data}} $$
 The correction curves were derived from polynomial fits to the percent deviation from linearity. Note that we cut off some points on each end of the curve to fit 100 to 20000 DN in 2019, 100 to 5000 DN in 2024 a little better. In practice, data values on images typically fall somewhere in this range.
 
 Lastly, checking that our correction works:
+
 <div>
     <img src="plots/CHECK_linearity_2019.png" alt="check linearity 2019 plot" width="300"/>
     <img src="plots/CHECK_linearity_2024.png" alt="check linearity 2024 plot" width="300"/>
