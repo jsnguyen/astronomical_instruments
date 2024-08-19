@@ -78,7 +78,9 @@ Plots showing the non-linearity:
 
 Plots showing the percent deviation from linearity:
 
-$$ \% = \frac{\text{perfect}-\text{actual}}{\text{perfect}} $$
+``` math
+\% = \frac{\text{perfect}-\text{actual}}{\text{perfect}}
+```
 
 <div>
     <img src="plots/linearity_diff_2019.png" alt="diff 2019 plot" width="300"/>
