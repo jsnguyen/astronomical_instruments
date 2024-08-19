@@ -1,6 +1,6 @@
 # astronomical_instruments
 
-Upgrades to NIRC2 in late 2023 slightly changed the behavior of the detector, notably, the gains are different. Changing the gain has resultingly changed the linearity characteristics of the detector. We perform an analysis using reduced data from early 2024 with the new instrument upgrades and characterize the non-linearity in the system. A function to correct for the non-linearity is provided. However, recent changes (~July 2024) require that a linearity test be performed again and new data needs to be taken.
+This package includes some helpful functions for reducing instrument-specific data. Right now, it only has functions for NIRC2.
 
 ## Installation
 
@@ -11,11 +11,43 @@ pip install ./astronomical_instruments
 
 ## Usage
 
+### Bad Pixel Masks
+
+To generate a bad pixel mask:
+
 ``` python
 from astronomical_instruments import NIRC2
 
+# just an example, load your data here instead
+dark_frames = [np.zeros((1024,1024)) for _ in range(10)]
+flat_frames = [np.ones((1024,1024)) for _ in range(10)]
+
+# change the sigma clip parameters and box radius parameters as needed
+# default choices are generally good for NIRC2
+bad_pixel_mask = NIRC2.make_bad_pixel_mask(dark_frames, flat_frames)
+```
+
+To generate the bad pixel mask using calibration data from 2023-01-01 from the KOA:
+
+``` python
+from astronomical_instruments import NIRC2
+
+# the arg saves to bad_pixel_mask_20230101.fits
+bad_pixel_mask = NIRC2.make_bad_pixel_mask_20230101(save_mask=True)
+```
+
+### Non-Linearity
+
+``` python
+import numpy as np
+from astronomical_instruments import NIRC2
+
 data = np.ones((1024,1024))
-corrected = NIRC2.apply_nonlinearity_correction(data)
+corrected = NIRC2.apply_nonlinearity_correction(data, '2019')
+
+# or
+
+corrected = NIRC2.apply_nonlinearity_correction(data, '2023')
 ```
 
 If you want to regenerate the correction curves, and diagnostic plots:
@@ -23,15 +55,17 @@ If you want to regenerate the correction curves, and diagnostic plots:
 ``` python
 from astronomical_instruments import linearity
 
-linearity('2024')
-linearity('2019')
+NIRC2.generate_nonlinearity_correction('2024', make_plots=True)
+NIRC2.generate_nonlinearity_correction('2019', make_plots=True)
 
- # make the check plots
-linearity('2024', use_correction_curve=True, save_curves=False)
-linearity('2019', use_correction_curve=True, save_curves=False)
+# make the check plots
+NIRC2.generate_nonlinearity_correction('2024', use_correction_curve=True, save_curves=False, make_plots=True)
+NIRC2.generate_nonlinearity_correction('2019', use_correction_curve=True, save_curves=False, make_plots=True)
 ```
 
-## Analysis
+## Linearity Analysis
+
+Upgrades to NIRC2 in late 2023 slightly changed the behavior of the detector, notably, the gains are different. Changing the gain has resultingly changed the linearity characteristics of the detector. We perform an analysis using reduced data from early 2024 with the new instrument upgrades and characterize the non-linearity in the system. A function to correct for the non-linearity is provided. However, recent changes (~July 2024) require that a linearity test be performed again and new data needs to be taken.
 
 In 2024, linearity data was collected in Kp and Ks band. Data was collected simply by turning on the flat lamps and exposing for increasing amounts of time. While we don't expect any difference between wavelengths, slight variation is observed in the dataset. Both 2019 and 2024 datasets are included in this repository.
 

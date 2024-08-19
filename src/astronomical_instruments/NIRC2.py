@@ -2,11 +2,14 @@ import importlib.resources
 import fnmatch
 
 import numpy as np
-from numpy.polynomial import Polynomial
 from astropy.io import fits
 import matplotlib.pyplot as plt
 
 from astronomical_instruments.utils import *
+
+import warnings
+from astropy.io.fits.verify import AstropyUserWarning
+warnings.simplefilter('ignore', category=AstropyUserWarning)
 
 class NIRC2:
     def apply_nonlinearity_correction(data, year, correction_filename=None):
@@ -47,7 +50,7 @@ class NIRC2:
 
         return corrected_data
 
-    def make_bad_pixel_mask(self, dark_frames, flat_frames, n_sigma_darks=1.5, n_sigma_flats = 3, n_div=128, box_radius=7):
+    def make_bad_pixel_mask(dark_frames, flat_frames, n_sigma_darks=1.5, n_sigma_flats = 3, n_div=128, box_radius=7):
         '''
         this is a general function, but has only been tested on NIRC2 data
         makes a bad pixel mask from dark frames and flat frames
@@ -76,7 +79,7 @@ class NIRC2:
         flat_median_stack = np.median(flat_frames, axis=0)
         flat_sigma_clip_mask = section_median_sigma_clip(flat_median_stack, (n_div, n_div), n_sigma_flats)
 
-        print('Median compare neighbors flat...')
+        print('Median compare neighbors flat... (this will take a bit)')
         flat_median_compare_mask = median_compare_neighbors(flat_median_stack, box_radius, n_sigma_flats)
 
         # these are using the best params for the NIRC2 diagonal crack
@@ -99,16 +102,25 @@ class NIRC2:
 
         return bad_pixel_mask
 
-    def make_bad_pixel_mask_20230101(self):
+    def make_bad_pixel_mask_20230101(save_mask=False):
+        '''
+        makes a bad pixel mask using KOA data from 2023-01-01
+        just uses darks and flats from this period
+        
+        args:
+            save_mask: boolean for saving mask to a fits file
+        '''
 
-        data_folder = importlib.resources.files('nirc2_darks')
+        print('Making bad pixel mask from 2023-01-01 data...')
+
+        data_folder = importlib.resources.files('astronomical_instruments.nirc2_darks')
         dark_files = []
         for resource in data_folder.iterdir():
             if fnmatch.fnmatch(resource.name, '*.fits'):
                 dark_files.append(resource)
         dark_files = sorted(dark_files)
 
-        data_folder = importlib.resources.files('nirc2_flats')
+        data_folder = importlib.resources.files('astronomical_instruments.nirc2_flats')
         flat_files = []
         for resource in data_folder.iterdir():
             if fnmatch.fnmatch(resource.name, '*.fits'):
@@ -131,129 +143,19 @@ class NIRC2:
                 flat_frames.append(fits.getdata(fn))
                 flat_headers.append(header)
 
-        bad_pixel_mask = self.make_bad_pixel_mask(dark_frames, flat_frames)
+        bad_pixel_mask = NIRC2.make_bad_pixel_mask(dark_frames, flat_frames)
 
-        save_name = 'bad_pixel_mask_20230101.fits'
-        print(f'Saving to {save_name}')
+        if save_mask:
+            save_name = 'bad_pixel_mask_20230101.fits'
+            print(f'Saving to {save_name}')
 
-        hdu = fits.PrimaryHDU(data=bad_pixel_mask.astype(np.uint8))
-        hdul = fits.HDUList([hdu])
-        hdul.writeto(save_name, overwrite=True)
+            hdu = fits.PrimaryHDU(data=bad_pixel_mask.astype(np.uint8))
+            hdul = fits.HDUList([hdu])
+            hdul.writeto(save_name, overwrite=True)
 
-    def plot_linearity(self, linearity_data, n_fit, year, use_correction_curve):
+        return bad_pixel_mask
 
-        fig, ax = plt.subplots(figsize=(6,6))
-        for bandname in linearity_data.keys():
-            exp_times, linearity_line, full_data_mean, full_data_std = linearity_data[bandname]
-
-            ax.errorbar(exp_times, full_data_mean, yerr=full_data_std, marker='o', linestyle='none', label=f'Average {bandname.capitalize()}-Band', alpha=0.7)
-            #ax.plot(fit_xs, np.vectorize(res)(fit_xs), linestyle='-', color=ax.get_lines()[-1].get_c(), label='Polynomial Fit')
-            ax.plot(exp_times[:n_fit], linearity_line(exp_times[:n_fit]), linestyle='--', color='black', alpha=0.7)
-            ax.plot(exp_times[n_fit-1:], linearity_line(exp_times[n_fit-1:]), linestyle='--', color='black', alpha=0.3)
-
-            if use_correction_curve:
-                ax.set_title(f'CHECK Linearity {year}')
-            else:
-                ax.set_title(f'Linearity {year}')
-
-            ax.set_xlabel('Exposure Time [s]')
-            ax.set_ylabel('Average Pixel Count [DN/px]')
-            
-            ax.set_xlim(0,125)
-            ax.set_ylim(0,1.25*np.max(full_data_mean))
-            
-        ax.grid()
-        ax.legend()   
-
-        if use_correction_curve:
-            plt.savefig(f'CHECK_linearity_{year}.png', bbox_inches='tight')
-        else:
-            plt.savefig(f'linearity_{year}.png', bbox_inches='tight')
-
-    def plot_linearity_deviation(self, linearity_data, correction_curves, diffs, cutoff, year, use_correction_curve):
-        
-        means = []
-        fig, ax = plt.subplots(figsize=(6,6))
-        for bandname in correction_curves.keys():
-            nonlinearity_fit = correction_curves[bandname]
-            diff = diffs[bandname]
-
-            _, _, full_data_mean, full_data_std = linearity_data[bandname]
-            weights = full_data_std/full_data_mean # higher number = more weight
-            means.append(full_data_mean)
-
-            fit_xs = np.linspace(np.min(full_data_mean), np.max(full_data_mean), 1000)
-
-            ax.errorbar(full_data_mean[cutoff:], diff[cutoff:]*100, yerr=np.abs(weights[cutoff:]*diff[cutoff:]*100), marker='o', alpha=0.7, label=f'Percent Deviation {bandname.capitalize()}-Band')
-            ax.plot(fit_xs, np.vectorize(nonlinearity_fit)(fit_xs)*100, linestyle='-', color=ax.get_lines()[-1].get_c(), label='2nd Order Polynomial Fit')
-
-            if use_correction_curve:
-                ax.set_title(f'CHECK Deviation From Linearity {year}')
-            else:
-                ax.set_title(f'Deviation From Linearity {year}')
-
-        ax.set_xlabel('Average Pixel Count [DN/px]')
-        ax.set_ylabel('Percent Deviation From Linearity [%]')
-
-        ax.set_xlim(0,1.25*np.max(means))
-        ax.set_ylim(-20,10)
-
-        ax.grid()
-        ax.legend()
-
-        if use_correction_curve:
-            plt.savefig(f'CHECK_linearity_diff_{year}.png', bbox_inches='tight')
-        else:
-            plt.savefig(f'linearity_diff_{year}.png', bbox_inches='tight')
-
-    def fit_linearity(self, data, headers, cutoff, n_fit, order=1):
-        
-        data_file = importlib.resources.files('astronomical_instruments.data').joinpath(f'nirc2mask.fits')
-        bad_pixel_mask = fits.getdata(data_file)
-        
-        exp_times = np.array([h['ITIME'] for h in headers])[cutoff:]
-        data = data[cutoff:]
-        headers = headers[cutoff:]
-
-        full_data_mean = []
-        full_data_std = []
-        for d in data:
-            masked = np.ma.array(d, mask=bad_pixel_mask)
-            full_data_mean.append(np.ma.mean(masked))
-            full_data_std.append(np.ma.std(masked))
-
-        full_data_mean = np.array(full_data_mean)
-        full_data_std = np.array(full_data_std)
-        
-        weights = np.square(full_data_std/full_data_mean) # higher number = more weight
-
-        # fitting a line to the first n points
-        linearity_line = Polynomial.fit(exp_times[:n_fit], full_data_mean[:n_fit], order, w=weights[:n_fit])
-
-        return exp_times, linearity_line, full_data_mean, full_data_std
-
-    def calc_correction_curves(self, linearity_data, correction_curve_slice, order=1):
-
-        dn, up = correction_curve_slice
-
-        diffs = {}
-        correction_curves = {}
-        for bandname in linearity_data.keys():
-            exp_times, linearity_line, full_data_mean, full_data_std = linearity_data[bandname]
-
-            expected = linearity_line(exp_times)
-            diff = (full_data_mean - expected) /  expected
-            weights = full_data_std/full_data_mean # higher number = more weight
-
-            nonlinearity_fit = Polynomial.fit(full_data_mean[dn:up], diff[dn:up], order, w=weights[dn:up])
-            print(f'{bandname.capitalize()}-Band Fit parameters: {nonlinearity_fit.convert().coef}')
-
-            correction_curves[bandname] = nonlinearity_fit
-            diffs[bandname] = diff
-
-        return correction_curves, diffs
-
-    def linearity(self, year, cutoff=None, correction_curve_slice=None, use_correction_curve=False, save_curves=True, order=1):
+    def generate_nonlinearity_correction(year, cutoff=None, correction_curve_slice=None, use_correction_curve=False, save_curves=True, make_plots=False, order=1):
         '''
         read in the datasets, fit the linearity, make plots, and save the final correction curves
 
@@ -309,17 +211,16 @@ class NIRC2:
                 data.append(d) 
                 headers.append(fits.getheader(fn))
 
-
             # fit a line to each dataset, cutting off the first n "cutoff" values
             # there's some weird parts near the beginning at extremely short exposures that don't match up with linearity
             # so we toss those and fit to a range that is closer to what we would take in science frames
 
-            res = self.fit_linearity(data, headers, cutoff, n_fit)
+            res = fit_linearity(data, headers, cutoff, n_fit)
             linearity_data[bandname] = res
 
         # calculate the correction curves based off of the "percent deviation from linearity"
         # percent = perfect_linear - actual_data / perfect_linear
-        correction_curves, diffs = self.calc_correction_curves(linearity_data, correction_curve_slice, order=order)
+        correction_curves, diffs = calc_correction_curves(linearity_data, correction_curve_slice, order=order)
 
         if save_curves:
             filename = f'correction_curve_{year}.npy'
@@ -330,5 +231,6 @@ class NIRC2:
             else:
                 np.save(filename, list(correction_curves.values())[0].convert().coef)
 
-        self.plot_linearity(linearity_data, n_fit, year, use_correction_curve)
-        self.plot_linearity_deviation(linearity_data, correction_curves, diffs, cutoff, year, use_correction_curve)
+        if make_plots:
+            plot_linearity(linearity_data, n_fit, year, use_correction_curve)
+            plot_linearity_deviation(linearity_data, correction_curves, diffs, cutoff, year, use_correction_curve)
