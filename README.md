@@ -1,4 +1,4 @@
-# astronomical_instruments
+# Astronomical Instruments
 
 This package includes some helpful functions for reducing instrument-specific data. Right now, it only has functions for NIRC2.
 
